@@ -8,13 +8,16 @@
     *подключение MPU-5060 ✅
     *логика модель pixy
     *логика модель MPU-5060 ✅
-    *подключение CM-530 
+    *подключение к CM-530 
     *логика движений 
+    *(доп)запоминание объектов
+    *расчет врата-мяч
   Доп. материал:
     *работа с гироскопом: https://alexgyver.ru/arduino-mpu6050/#Получение_сырых_данных
-    *работа с pixy: 
-    *подключение pixy: 
+    *подключение pixy: https://medium.com/jungletronics/arduino-meets-pixy-36138c474912
+    *pixy: 
     *подключение MPU-5060: 
+    *порты: https://vk.com/away.php?to=https%3A%2F%2Farduinomaster.ru%2Fdatchiki-arduino%2Fpodklyuchenie-spi-arduino%2F&cc_key=   
 */
 #include <SPI.h>  
 #include <Pixy.h>
@@ -57,31 +60,28 @@ void setup() {
   
   delay(500);
 }
-
 void loop() {
   getData();
   if(isFallBack()){
     //Serial.println("Back");
+    wakeUpFromBack();
   }
   else if(isFallForward()){
     //Serial.println("Forward");
+    wakeUpFromForward();
   }
   else{
-    Serial.println("Good");
+    //Serial.println("Good");
     //Serial.println(data[2]);
+    if(canKick()){
+      kickBall();
+    }
+    
     coords();
   }
   delay(200);
 }
-void getData() {
-  Wire.beginTransmission(MPU_addr);
-  Wire.write(0x3B);  // starting with register 0x3B (ACCEL_XOUT_H)
-  Wire.endTransmission(false);
-  Wire.requestFrom(MPU_addr, 14, true); // request a total of 14 registers
-  for (byte i = 0; i < 7; i++) {
-    data[i] = Wire.read() << 8 | Wire.read();
-  }
-}
+/*__________PIXY____________*/
 void coords(){
   blocks = pixy.getBlocks();
   if (blocks)
@@ -93,11 +93,26 @@ void coords(){
     ball.height = pixy.blocks[0].height;
   }  
 }
-bool isFallBack(){
-  return data[2] <= -13000 ? true : false;
+bool canKick(){
+  return false;
 }
-bool isFallForward(){
-  return data[2] >= 11000 ? true : false;
+bool isBallForward(){
+  return false;
+}
+bool isBallLeft(){
+  return false;
+}
+bool isBallLeftForward(){
+  return false;
+}
+bool isBallRight(){
+  return false;
+}
+bool isBallRightForward(){
+  return false;
+}
+void searchBall(){
+  
 }
 void printBallCoords(){
   Serial.print("X: ");
@@ -109,6 +124,41 @@ void printBallCoords(){
   Serial.print(" Height: ");
   Serial.println(ball.height);
 }
+/*__________Гироскоп________*/
+void getData() {
+  Wire.beginTransmission(MPU_addr);
+  Wire.write(0x3B);  // starting with register 0x3B (ACCEL_XOUT_H)
+  Wire.endTransmission(false);
+  Wire.requestFrom(MPU_addr, 14, true); // request a total of 14 registers
+  for (byte i = 0; i < 7; i++) {
+    data[i] = Wire.read() << 8 | Wire.read();
+  }
+}
+bool isFallBack(){
+  return data[2] <= -13000 ? true : false;
+}
+bool isFallForward(){
+  return data[2] >= 11000 ? true : false;
+}
 void printGiro(){
   Serial.println(data[2]);
+}
+/*__________Движения________*/
+void wakeUpFromBack(){
+  
+}
+void wakeUpFromForward(){
+  
+}
+void goForward(){
+  
+}
+void rotateRight(){
+  
+}
+void rotateLeft(){
+  
+}
+void kickBall(){
+  
 }
