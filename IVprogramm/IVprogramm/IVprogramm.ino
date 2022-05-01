@@ -22,8 +22,10 @@
 #include <SPI.h>  
 #include <Pixy.h>
 #include "Wire.h"
-
+static int zFallForward = 12000,
+           zFallBack = -12000;
 static int i = 0;
+int wait = 20;
 int ziroPosGiro;
 uint16_t blocks;
 int16_t data[7];  
@@ -63,23 +65,21 @@ void setup() {
 void loop() {
   getData();
   if(isFallBack()){
-    //Serial.println("Back");
     wakeUpFromBack();
   }
   else if(isFallForward()){
-    //Serial.println("Forward");
     wakeUpFromForward();
   }
   else{
-    //Serial.println("Good");
-    //Serial.println(data[2]);
+    coords();        
     if(canKick()){
       kickBall();
     }
-    
-    coords();
+    else{
+      goForward();
+    }
   }
-  delay(200);
+  delay(wait);
 }
 /*__________PIXY____________*/
 void coords(){
@@ -111,8 +111,17 @@ bool isBallRight(){
 bool isBallRightForward(){
   return false;
 }
+bool isGoatForward(){
+  return false;
+}
+bool isGoatLeft(){
+  return false;
+}
+bool isGoatRight(){
+  return false;
+}
 void searchBall(){
-  
+  //поворачивать шеей
 }
 void printBallCoords(){
   Serial.print("X: ");
@@ -135,30 +144,30 @@ void getData() {
   }
 }
 bool isFallBack(){
-  return data[2] <= -13000 ? true : false;
+  return data[2] <= zFallBack ? true : false;
 }
 bool isFallForward(){
-  return data[2] >= 11000 ? true : false;
+  return data[2] >= zFallForward ? true : false;
 }
 void printGiro(){
   Serial.println(data[2]);
 }
 /*__________Движения________*/
 void wakeUpFromBack(){
-  
+  Serial.println("fall Back");
 }
 void wakeUpFromForward(){
-  
+  Serial.println("fall Forward");
 }
 void goForward(){
-  
+  Serial.println("go Forward");
 }
 void rotateRight(){
-  
+  Serial.println("rotate Right");
 }
 void rotateLeft(){
-  
+  Serial.println("rotate Left");
 }
 void kickBall(){
-  
+  Serial.println("kick Ball");
 }
