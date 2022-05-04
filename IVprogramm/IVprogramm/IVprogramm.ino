@@ -1,4 +1,4 @@
-/*
+  /*
   Обозначения:
     *data[2] - поворот гироскопом вперёд и назад
     *pixy.getBlocks[0] - мяч
@@ -6,9 +6,9 @@
   Задачи:
     *подключение pixy ✅
     *подключение MPU-5060 ✅
-    *логика модель pixy
+    *логика модель pixy 
     *логика модель MPU-5060 ✅
-    *подключение к CM-530 
+    *подключение к CM-530 ✅
     *логика движений 
     *(доп)запоминание объектов
     *расчет врата-мяч
@@ -16,12 +16,13 @@
     *работа с гироскопом: https://alexgyver.ru/arduino-mpu6050/#Получение_сырых_данных
     *подключение pixy: https://medium.com/jungletronics/arduino-meets-pixy-36138c474912
     *pixy: 
-    *подключение MPU-5060: 
+    *подключение MPU-5060: https://stemsnab.ru/blogs/uroki/peredacha-dannyh-na-cm530-cherez-rxtx-porty
     *порты: https://vk.com/away.php?to=https%3A%2F%2Farduinomaster.ru%2Fdatchiki-arduino%2Fpodklyuchenie-spi-arduino%2F&cc_key=   
 */
 #include <SPI.h>  
 #include <Pixy.h>
 #include "Wire.h"
+
 static int zFallForward = 12000,
            zFallBack = -12000;
 static int i = 0;
@@ -31,6 +32,49 @@ uint16_t blocks;
 int16_t data[7];  
 char buf[32]; 
 const int MPU_addr = 0x68;
+
+/*Массивы для контроля CM-530*/
+const uint8_t  moveFoward[6]  = {0xAA, 0x01, 0x0E,
+                                 0xAA, 0x00, 0x1E};
+const uint8_t* moveFoward_ptr = moveFoward;
+const uint8_t  moveLeft[6]    = {0xAA, 0x04, 0x5E,
+                                 0xAA, 0x00, 0x1E};
+const uint8_t* moveLeft_ptr   = moveLeft;
+const uint8_t  moveRight[6]   = {0xAA, 0x08, 0x1E,
+                                 0xAA, 0x00, 0x1E};
+const uint8_t* moveRight_ptr  = moveRight;
+const uint8_t  moveBack[6]    = {0xAA, 0x02, 0x7E, 
+                                 0xAA, 0x00, 0x1E};
+const uint8_t* moveBack_ptr   = moveBack;
+
+// Slide to left and right
+const uint8_t  slideLeft[12]  = {0xAA, 0x24, 0x5E, 
+                                 0xAA, 0x00, 0x1E};
+const uint8_t* slideLeft_ptr  = slideLeft;
+const uint8_t  slideRight[12] = {0xAA, 0x28, 0x1E, 
+                                 0xAA, 0x00, 0x1E};
+const uint8_t* slideRight_ptr = slideRight;
+
+// Look down and up
+const uint8_t  lookDown[12]   = {0xAA, 0x40, 0x1E, 
+                                 0xAA, 0x00, 0x1E};
+const uint8_t* lookDown_ptr   = lookDown;
+const uint8_t  lookUp[12]     = {0xAA, 0x10, 0x1E, 
+                                 0xAA, 0x00, 0x1E};
+const uint8_t* lookUp_ptr     = lookUp;
+
+
+// Kick action
+const uint8_t  kickAction[12] = {0xAA, 0x00, 0x0F, 
+                                 0xAA, 0x00, 0x1E};
+const uint8_t* kickAction_ptr = kickAction;
+/*конец массивов*/
+
+// FSM States for robot
+#define ROBO_FSM_FIND     0 // State for finding the ball
+#define ROBO_FSM_WALK     1 // State for walking towards the ball
+#define ROBO_FSM_POSITION 2 // State for aligning robot with ball
+#define ROBO_FSM_KICK     3 // State for kicking the ball
 
 Pixy pixy;
 
@@ -46,13 +90,16 @@ PixyBlockCoords ball;
 PixyBlockCoords enemyGoats;
 
 void setup() {  
+  delay(2000);
+  
   Wire.begin();
   Wire.beginTransmission(MPU_addr);
   Wire.write(0x6B);
   Wire.write(0);     
   Wire.endTransmission(true);
   
-  Serial.begin(9600);
+  Serial3.begin(57600);
+  Serial.begin(57600);
   Serial.print("Starting...\n");
   
   pixy.init();
@@ -60,10 +107,12 @@ void setup() {
   getData();
   ziroPosGiro = data[2];
   
-  delay(500);
+  delay(2000);
 }
 void loop() {
-  getData();
+  goForward();
+  
+  /*getData();
   if(isFallBack()){
     wakeUpFromBack();
   }
@@ -78,7 +127,7 @@ void loop() {
     else{
       goForward();
     }
-  }
+  }*/
   delay(wait);
 }
 /*__________PIXY____________*/
@@ -145,7 +194,7 @@ void getData() {
 }
 bool isFallBack(){
   return data[2] <= zFallBack ? true : false;
-}
+} 
 bool isFallForward(){
   return data[2] >= zFallForward ? true : false;
 }
@@ -160,14 +209,54 @@ void wakeUpFromForward(){
   Serial.println("fall Forward");
 }
 void goForward(){
-  Serial.println("go Forward");
+  Serial.write(moveFoward_ptr, 3);
+  delay(210);
+  Serial.write(moveFoward_ptr+3, 3);
+}
+void goBack()
+{
+  Serial.write(moveBack_ptr, 3);
+  delay(210);
+  Serial.write(moveBack_ptr+3, 3);
 }
 void rotateRight(){
-  Serial.println("rotate Right");
+  Serial.write(moveRight_ptr, 3);
+  delay(210);
+  Serial.write(moveRight_ptr+3, 3);
 }
 void rotateLeft(){
-  Serial.println("rotate Left");
+  Serial.write(moveLeft_ptr, 3);
+  delay(210);
+  Serial.write(moveLeft_ptr+3, 3);
 }
 void kickBall(){
-  Serial.println("kick Ball");
+  Serial.write(kickAction_ptr, 3);
+  delay(210);
+  Serial.write(kickAction_ptr+3, 3);
+}
+//head
+void lookUp()
+{
+  Serial.write(lookUp_ptr, 3);
+  delay(210);
+  Serial.write(lookUp_ptr+3, 3);
+}
+void lookDown()
+{
+  Serial.write(lookDown_ptr, 3);
+  delay(210);
+  Serial.write(lookDown_ptr+3, 3);
+}
+//
+void slideLeft()
+{
+  Serial.write(slideLeft_ptr, 3);
+  delay(210);
+  Serial.write(slideLeft_ptr+3, 3);
+}
+void slideRight()
+{
+  Serial.write(slideRight_ptr, 3);
+  delay(210);
+  Serial.write(slideRight_ptr+3, 3);
 }
